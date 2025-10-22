@@ -1,0 +1,27 @@
+# 1. node_modules (필수!)
+# 이 폴더는 'npm install' 명령어로 새로 설치해야 합니다.
+# 용량이 매우 크고 OS마다 내용이 다릅니다.
+/node_modules/
+
+# 2. 로그 파일
+# 실행 기록일 뿐, 백업할 필요가 없습니다.
+logs
+*.log
+npm-debug.log*
+
+# 3. 운영체제(OS) 자동 생성 파일 (macOS, Windows)
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# 4. IDE (코드 편집기) 개인 설정
+# VSCode, WebStorm 등
+.vscode/
+.idea/
+
+# 5. 기타 런타임 및 빌드 파일
+*.pid
+*.seed
+coverage/
+build/
