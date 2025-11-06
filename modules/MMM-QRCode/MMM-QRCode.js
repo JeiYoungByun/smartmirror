@@ -1,90 +1,115 @@
-/* global Module */
+/* global Module, Log, QRCode */
 
-/* Magic Mirror
- * Module: QRCode
- *
- * By Evghenii Marinescu https://github.com/MarinescuEvghenii/
- * MIT Licensed.
- */
-
-'use strict';
+"use strict";
 
 Module.register("MMM-QRCode", {
-
     defaults: {
-        text       : 'https://github.com/MarinescuEvghenii/MMM-QRCode', // 모듈 시작 시 기본 텍스트
-        colorDark  : "#fff", // QR 코드 색상 (어두운 부분)
-        colorLight : "#000", // QR 코드 색상 (밝은 부분)
-        imageSize  : 150,    // QR 코드 이미지 크기 (픽셀)
-        showRaw    : true    // QR 코드 하단에 URL 텍스트 표시 여부
+        text: "",
+        colorDark: "#fff",
+        colorLight: "#000",
+        imageSize: 150,
+        showRaw: false,
+        listenNotification: "" // config.js에서 설정
     },
 
-    getStyles: function() {
+    getStyles: function () {
         return ["MMM-QRCode.css"];
     },
 
-    getScripts: function() {
+    getScripts: function () {
         return ["qrcode.min.js"];
     },
 
-
-    start: function() {
+    start: function () {
         this.config = Object.assign({}, this.defaults, this.config);
-        Log.log("Starting module: " + this.name);
-
-        // 모듈 시작 시 config에 설정된 기본 텍스트로 qrText 초기화
+        Log.info(
+            "Starting module: " +
+                this.name +
+                ". Listening for: '" +
+                this.config.listenNotification +
+                "'"
+        );
         this.qrText = this.config.text;
     },
 
-    // --- 여기가 수정된 핵심 부분입니다 ---
-    notificationReceived: function(notification, payload, sender) {
+    notificationReceived: function (notification, payload, sender) {
         
-        // 1. 기본 뉴스피드 모듈이 보내는 "NEWS_ARTICLE_CHANGED" 알림인지 확인
-        if (notification === "NEWS_ARTICLE_CHANGED") {
+        // 우리가 기다리던 알림(listenNotification)이 아니면 무시
+        if (notification !== this.config.listenNotification) {
+            return;
+        }
+
+        let newQrText = null; // 새 QR 텍스트를 저장할 변수
+
+        // 2. 알림 종류에 따라 다르게 처리
+        
+        // [A] 캘린더 모듈이 보낸 알림일 경우 (payload는 배열)
+        if (notification === "CALENDAR_EVENTS") {
             
-            // 2. payload(기사 객체)가 유효하고, 그 안에 url 속성이 있으며,
-            //    그 URL이 현재 QR코드의 URL과 다른지 확인
-            if (payload && payload.url && this.qrText !== payload.url) {
+            // 2-1. 캘린더에 일정이 하나 이상 있고,
+            if (payload && Array.isArray(payload) && payload.length > 0) {
                 
-                this.qrText = payload.url; // 3. 텍스트(URL)를 새 기사의 URL로 교체
-                this.updateDom(500);       // 4. QR 코드를 새로 그리라고 명령 (애니메이션 0.5초)
+                const firstEvent = payload[0]; // 첫 번째(가장 가까운) 일정을 가져옴
+                
+                // 2-2. 그 일정의 'location' (위치) 필드에 값이 있다면
+                if (firstEvent.location) {
+                    newQrText = firstEvent.location; // QR 텍스트를 그 위치 URL로 설정
+                } else {
+                    // 일정이 있지만 위치 값이 없는 경우
+                    newQrText = ""; // QR 코드를 숨김 (빈 문자열)
+                }
+            } else {
+                // 일정이 아예 없는 경우
+                newQrText = ""; // QR 코드를 숨김 (빈 문자열)
             }
         }
-    },
-    // --- 수정 끝 ---
-
-    getDom: function() {
-        const wrapperEl = document.createElement("div");
-        wrapperEl.classList.add('qrcode');
-
-        // QR 코드를 담을 div 생성
-        const qrcodeEl  = document.createElement("div");
         
-        // qrcode.min.js 라이브러리를 사용하여 QR 코드 생성
-        new QRCode(qrcodeEl, {
-            text: this.qrText, // start 또는 notificationReceived에서 업데이트된 URL
-            width: this.config.imageSize,
-            height: this.config.imageSize,
-            colorDark : this.config.colorDark,
-            colorLight : this.config.colorLight,
-            correctLevel : QRCode.CorrectLevel.H
-        });
+        // [B] 뉴스 모듈이 보낸 알림일 경우 (payload는 객체)
+        else if (notification === "NEWS_ARTICLE_CHANGED") {
+            
+            // 2-1. 뉴스 페이로드가 유효하고, 그 안에 url 속성이 있다면
+            if (payload && payload.url) {
+                newQrText = payload.url; // QR 텍스트를 뉴스 기사 URL로 설정
+            } else {
+                // 뉴스 페이로드가 비어있는 경우
+                newQrText = ""; // QR 코드를 숨김
+            }
+        }
+        
+        // 3. 최종적으로 QR 코드를 업데이트할지 결정
+        if (newQrText !== null && this.qrText !== newQrText) {
+            this.qrText = newQrText;
+            Log.info(this.name + " updating QR code to: '" + (this.qrText || "empty") + "'");
+            this.updateDom(3000);
+        }
+    },
 
-        // 생성된 QR 코드를 이미지 div에 추가
-        const imageEl  = document.createElement("div");
-        imageEl.classList.add('qrcode__image');
+    getDom: function () {
+        // (getDom 함수는 이전과 동일합니다 - qrText가 비어있으면 QR 안 그림)
+        const wrapperEl = document.createElement("div");
+        wrapperEl.classList.add("qrcode");
+        const qrcodeEl = document.createElement("div");
+
+        if (this.qrText) {
+            new QRCode(qrcodeEl, {
+                text: this.qrText,
+                width: this.config.imageSize,
+                height: this.config.imageSize,
+                colorDark: this.config.colorDark,
+                colorLight: this.config.colorLight,
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+        const imageEl = document.createElement("div");
+        imageEl.classList.add("qrcode__image");
         imageEl.appendChild(qrcodeEl);
-
         wrapperEl.appendChild(imageEl);
-
-        // config에서 showRaw가 true일 경우에만 URL 텍스트 표시
-        if(this.config.showRaw) {
+        if (this.config.showRaw && this.qrText) {
             const textEl = document.createElement("div");
-            textEl.classList.add('qrcode__text');
-            textEl.innerHTML = this.qrText; // 현재 QR 코드가 담고 있는 URL 텍스트
+            textEl.classList.add("qrcode__text");
+            textEl.innerHTML = this.qrText;
             wrapperEl.appendChild(textEl);
         }
-
         return wrapperEl;
     }
 });
