@@ -1,0 +1,10 @@
+credentials.json
+tokens.json
+token.json
+profiles/*.json
+node_modules/
+temp_screen.html
+.AppleDouble
+.AppleDouble/*
+profiles/.AppleDouble
+resources/.AppleDouble
