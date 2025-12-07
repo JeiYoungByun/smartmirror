@@ -1,47 +1,195 @@
 /* ───────────────────────────────
-   MagicMirror 뉴스피드 스타일 커스터마이징
+   MagicMirror 2025 Modern White Theme
+   Custom Styles for News Feed & Calendar
 ──────────────────────────────── */
 
-/* 뉴스피드 전체 영역 */
+/* Modern newsfeed container with card design */
 .newsfeed {
-  max-width: 400px; /* 오른쪽 영역의 최대 폭 조절 (원하는 크기로 조절 가능) */
-  margin-top: 10px;
+  max-width: 450px;
+  margin-top: 0;
   overflow: hidden;
 }
 
-/* 뉴스 출처 (예: 연합뉴스, 몇 분 전 등) */
+/* News source with modern badge style */
 .newsfeed .newsfeed-source {
-  font-size: 13px;
-  color: #bbb;
-  margin-bottom: 3px;
+  font-size: 11px;
+  color: var(--color-text-dimmed);
+  background: var(--color-accent-light);
+  padding: 4px 10px;
+  border-radius: 12px;
+  display: inline-block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
-/* 뉴스 제목 */
+/* Modern news title with better typography */
 .newsfeed .newsfeed-title {
-  font-size: 18px;
-  font-weight: 500;
-  color: #ffffff;
-  line-height: 1.4;
-  margin-bottom: 4px;
-
-  /* 긴 제목이 오른쪽으로 삐져나오지 않게 처리 */
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-bright);
+  line-height: 1.5;
+  margin-bottom: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap; /* 한 줄로 자르고 ... 표시 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  letter-spacing: -0.01em;
 }
 
-/* 뉴스 본문 (설명) */
+/* Refined news description */
 .newsfeed .newsfeed-desc {
-  font-size: 14px;
-  color: #cccccc;
-  line-height: 1.4;
-  margin-bottom: 12px;
-
-  /* 뉴스 내용이 너무 길면 2줄까지만 표시 + 말줄임(...) */
+  font-size: 13px;
+  color: var(--color-text-dimmed);
+  line-height: 1.6;
+  margin-bottom: 16px;
   display: -webkit-box;
-  -webkit-line-clamp: 2; /* 표시할 줄 수 */
+  -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Modern calendar styles */
+.calendar {
+  background: transparent;
+}
+
+.calendar .calendar-table {
+  border-spacing: 4px;
+  margin-top: 12px;
+}
+
+.calendar .calendar-table th {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-dimmed);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 4px;
+}
+
+.calendar .calendar-table td {
+  font-size: 13px;
+  color: var(--color-text);
+  padding: 8px;
+  text-align: center;
+  border-radius: var(--border-radius-small);
+  transition: all 0.2s ease;
+}
+
+.calendar .calendar-table td.today {
+  background: var(--color-accent);
+  color: white;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+}
+
+.calendar .calendar-table td:hover {
+  background: var(--color-accent-light);
+  transform: scale(1.05);
+}
+
+/* Modern clock display */
+.clock {
+  font-family: var(--font-primary), sans-serif;
+}
+
+.clock .time {
+  font-size: 5rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--color-text-bright);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.clock .date {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--color-text-dimmed);
+  letter-spacing: -0.01em;
+}
+
+/* Modern weather widget */
+.weather {
+  background: linear-gradient(135deg, var(--color-accent-light) 0%, var(--color-card-bg) 100%);
+  border-radius: var(--border-radius);
+  padding: 24px;
+}
+
+.weather .weather-icon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* Subtle divider for sections */
+.divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 20px 0;
+  border: none;
+}
+
+/* Modern accent elements */
+.accent-line {
+  width: 40px;
+  height: 4px;
+  background: var(--color-accent);
+  border-radius: 2px;
+  margin: 8px 0;
+}
+
+/* Smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.module {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Modern scrollbar for overflow content */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--color-card-bg);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-text-dimmed);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text);
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 1024px) {
+  :root {
+    --gap-body-top: 20px;
+    --gap-body-right: 20px;
+    --gap-body-bottom: 20px;
+    --gap-body-left: 20px;
+    --gap-modules: 16px;
+  }
+
+  .module {
+    padding: 16px;
+  }
 }

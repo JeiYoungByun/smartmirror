@@ -7,17 +7,20 @@ let config = {
     address: "0.0.0.0", 
     port: 8080,
     electronOptions: {
-        fullscreen: false,
-        width: 1024,
-        height: 768,
-        frame: true,
-        // [라즈베리파이 5 화면 오류 방지 옵션]
+        fullscreen: false,          // <- 풀스크린 끔
+        width: 1920,                // 모니터 해상도에 맞추기
+        height: 1080,
+        x: 0,
+        y: 0,
+        frame: true,                // 윈도우 프레임/메뉴 허용
+        autoHideMenuBar: false,     // 메뉴바 항상 보이게
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false
         },
-        backgroundColor: "#000000"
+    backgroundColor: "#ffffff"
     },
+
     basePath: "/",
     
     ipWhitelist: ["127.0.0.1", "::ffff:127.0.0.1", "::1", "::ffff:192.168.75.0/24"], 
