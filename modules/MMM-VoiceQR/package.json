@@ -1,0 +1,16 @@
+{
+	"name": "MMM-VoiceQR",
+	"version": "1.0.0",
+	"description": "Google Assistant Voice Trigger for QR Code",
+	"main": "node_helper.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"dependencies": {
+		"google-assistant": "^0.5.4",
+		"google-auth-library": "^10.5.0",
+		"node-record-lpcm16": "^1.0.1"
+	},
+	"author": "ChangGongSeol Team",
+	"license": "MIT"
+}

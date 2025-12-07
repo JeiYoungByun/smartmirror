@@ -1,7 +1,8 @@
 # 1. node_modules (필수!)
 # 이 폴더는 'npm install' 명령어로 새로 설치해야 합니다.
 # 용량이 매우 크고 OS마다 내용이 다릅니다.
-/node_modules/
+node_modules/
+modules/MMM-VoiceQR/node_modules/
 
 # 2. 로그 파일
 # 실행 기록일 뿐, 백업할 필요가 없습니다.
@@ -25,3 +26,17 @@ Desktop.ini
 *.seed
 coverage/
 build/
+
+# --- 개인 보안 파일 (절대 올리지 말 것) ---
+credentials.json
+token.json
+client_secret_*.json
+
+# --- 인증용 스크립트 (비밀번호 포함됨) ---
+setup.js
+auth.js
+auth_new.js
+final_auth.js
+auth_interactive.js
+get_token.js
+test_debug.js
