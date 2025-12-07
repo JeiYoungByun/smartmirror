@@ -1,9 +1,9 @@
 /* Magic Mirror
  * Module: MMM-VoiceQR
- *
- * By ChangGongSeol Team
- * MIT Licensed.
+ * Node Helper (Backend)
  */
+
+require('module-alias').addAlias('grpc', '@grpc/grpc-js');
 
 const NodeHelper = require("node_helper");
 const path = require("path");
@@ -13,7 +13,6 @@ const record = require("node-record-lpcm16");
 module.exports = NodeHelper.create({
     start: function () {
         console.log("MMM-VoiceQR helper started...");
-        this.config = null;
         this.assistant = null;
     },
 
@@ -21,8 +20,6 @@ module.exports = NodeHelper.create({
         if (notification === "INIT") {
             this.config = payload;
             this.initAssistant();
-        } else if (notification === "START_LISTENING") {
-            this.startConversation();
         }
     },
 
@@ -32,77 +29,93 @@ module.exports = NodeHelper.create({
             savedTokensPath: path.resolve(__dirname, "token.json"),
         };
 
-        this.assistant = new GoogleAssistant(authConfig.keyFilePath ? authConfig : null);
+        const conversationConfig = {
+            lang: "ko-KR", 
+            audio: {
+                sampleRateIn: 16000,
+                encodingIn: "LINEAR16",
+            },
+        };
+
+        this.assistant = new GoogleAssistant(authConfig);
 
         this.assistant.on("ready", () => {
-            console.log("[MMM-VoiceQR] Assistant is ready. Listening...");
-            // 모듈 시작 시 자동으로 리스닝을 시작하거나, 필요에 따라 트리거 할 수 있습니다.
-            // 여기서는 연속성을 위해 대화가 끝나면 다시 시작하는 로직을 startConversation에 포함합니다.
-            this.startConversation(); 
+            console.log("[MMM-VoiceQR] Assistant Ready! Starting Mic...");
+            this.startListening(conversationConfig);
         });
 
-        this.assistant.on("error", (error) => {
-            console.error("[MMM-VoiceQR] Assistant Auth Error:", error);
+        this.assistant.on("error", (err) => {
+            console.error("[MMM-VoiceQR] Auth Error:", err);
         });
     },
 
-    startConversation: function () {
+    startListening: function (conversationConfig) {
         if (!this.assistant) return;
 
-        const conversationConfig = {
-            audio: {
-                encodingIn: "LINEAR16", // 마이크 입력 포맷
-                sampleRateIn: 16000,    // 샘플 레이트
-            },
-            lang: "ko-KR", // 한국어 설정
-        };
-
         this.assistant.start(conversationConfig, (conversation) => {
-            this.sendSocketNotification("LISTENING_STATUS", true); // 화면에 '듣는 중' 표시용
-
-            // 1. 마이크 입력을 Assistant로 파이프(전송) 연결
             const mic = record.record({
                 sampleRate: 16000,
                 threshold: 0,
                 verbose: false,
-                recordProgram: "arecord", // 라즈베리파이에서는 arecord 사용
-                device: "plughw:1,0",     // ※ 중요: 사용하는 마이크 장치 번호로 변경 필요 (arecord -l 확인)
+                recordProgram: "arecord", 
+                device: "plughw:1,0", 
             });
-            
+
             mic.stream().pipe(conversation);
 
-            // 2. 음성 인식 결과 처리 (Speech-to-Text)
             conversation
                 .on("transcription", (data) => {
-                    // 사용자가 말하는 내용이 실시간으로 텍스트로 변환됨
                     if (data.transcription) {
-                        console.log("[MMM-VoiceQR] Heard:", data.transcription);
+                        // 1. 텍스트 정제 (공백 제거, 소문자 변환)
+                        const text = data.transcription.toLowerCase().replace(/\s/g, "");
                         
-                        // [핵심 로직] 키워드 감지
-                        const spokenText = data.transcription.toLowerCase().replace(/\s/g, ""); // 공백제거 후 비교
-                        if (spokenText.includes("뉴스qr") || spokenText.includes("newsqr")) {
-                            console.log("[MMM-VoiceQR] Keyword Detected! Sending Turn Over signal.");
-                            this.sendSocketNotification("TURN_OVER", { foundHook: "GET_NEWS_QR" });
+                        // [디버깅용 로그] 실제 들린 말 확인
+                        console.log("Heard:", text); 
+
+                        // ---------------------------------------------------------
+                        // [명령어 처리 로직]
+                        // ---------------------------------------------------------
+
+                        // Case 1: [뉴스 QR] 켜기
+                        if (text.includes("뉴스qr") || text.includes("newsqr")) {
+                            console.log(">>> 명령 감지: 뉴스 QR");
+                            this.sendSocketNotification("TURN_OVER", { type: "NEWS" });
+                        }
+                        
+                        // Case 2: [캘린더 QR] "일정장소QR" 명령어로 통일
+                        // 예: "일정 장소 QR 보여줘", "두 번째 일정 장소 QR"
+                        else if (text.includes("일정장소qr") || text.includes("일정장소큐알")) {
+                            
+                            let index = 0; // 기본값: 첫 번째 (0)
+                            
+                            // 순서 키워드 감지 (없으면 0 유지)
+                            if (text.includes("두번째") || text.includes("2번째")) index = 1;
+                            else if (text.includes("세번째") || text.includes("3번째")) index = 2;
+                            else if (text.includes("네번째") || text.includes("4번째")) index = 3;
+                            else if (text.includes("다섯번째") || text.includes("5번째")) index = 4;
+                            
+                            console.log(`>>> 명령 감지: 일정 장소 QR (${index + 1}번째)`);
+                            this.sendSocketNotification("TURN_OVER", { type: "CALENDAR", index: index });
+                        }
+
+                        // Case 3: [끄기] (공통)
+                        else if (text.includes("qr꺼") || text.includes("지워") || text.includes("닫아") || text.includes("치워")) {
+                            console.log(">>> 명령 감지: QR 끄기");
+                            this.sendSocketNotification("TURN_OVER", { type: "OFF" });
                         }
                     }
                 })
-                .on("ended", (error, continueConversation) => {
-                    this.sendSocketNotification("LISTENING_STATUS", false);
-                    mic.stop(); // 녹음 중지
-                    
-                    if (error) console.log("[MMM-VoiceQR] Conversation Ended Error:", error);
-                    
-                    // 연속 듣기를 위해 대화 종료 후 다시 시작 (필요 시 주석 처리하여 버튼 트리거로 변경 가능)
-                    setTimeout(() => {
-                        this.startConversation();
-                    }, 1000);
-                })
-                .on("error", (error) => {
-                    console.error("[MMM-VoiceQR] Conversation Error:", error);
+                .on("ended", (error) => {
                     mic.stop();
                     setTimeout(() => {
-                        this.startConversation();
-                    }, 3000);
+                        this.startListening(conversationConfig);
+                    }, 500);
+                })
+                .on("error", (error) => {
+                    mic.stop();
+                    setTimeout(() => {
+                        this.startListening(conversationConfig);
+                    }, 2000);
                 });
         });
     }

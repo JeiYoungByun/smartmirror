@@ -4,18 +4,22 @@
  * MIT Licensed.
  */
 let config = {
-    // [설정 1] "0.0.0.0" (외부 접속 허용)
     address: "0.0.0.0", 
     port: 8080,
     electronOptions: {
         fullscreen: false,
         width: 1024,
-        height: 768, 
-        frame: true
+        height: 768,
+        frame: true,
+        // [라즈베리파이 5 화면 오류 방지 옵션]
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        },
+        backgroundColor: "#000000"
     },
     basePath: "/",
     
-    // [설정 2] 로컬 네트워크(192.168.75.xxx) 접속 허용
     ipWhitelist: ["127.0.0.1", "::ffff:127.0.0.1", "::1", "::ffff:192.168.75.0/24"], 
 
     useHttps: false,
@@ -41,7 +45,7 @@ let config = {
             position: "top_left"
         },
         {
-            module: 'MMM-MonthCalendar',
+            module: "MMM-MonthCalendar",
             position: "top_left",
             header: "",
             config: {
@@ -54,11 +58,13 @@ let config = {
             header: "My Schedule",
             position: "top_left",
             config: {
-                // [핵심 1] 캘린더가 알림을 방송(Broadcast)하도록 설정
-                broadcastEvents: true,
+                broadcastEvents: true, // 필수
+                maximumEntries: 50,        // 최대 50개까지 표시
+                
                 calendars: [
                     {
                         symbol: "calendar-check",
+                        // 다시 본인의 비공개 주소로 설정하세요
                         url: "https://calendar.google.com/calendar/ical/byeonjeiyoung%40gmail.com/private-06c85fe4330e4d1f521fc981782b0b70/basic.ics"
                     }
                 ]
@@ -87,31 +93,26 @@ let config = {
             }
         },
 
-        // 캘린더용 QR 코드 모듈
+        // [QR 코드 모듈]
         {
             module: "MMM-QRCode",
-            position: "bottom_center", 
+            position: "bottom_right", 
             config: {
-                imageSize: 150, // (뉴스 QR과 구분되게 사이즈 조절)
+                imageSize: 200,
                 showRaw: false,
-                text: "", // 기본값
+                text: "", 
                 
-                // [핵심] 캘린더 알림을 듣도록 설정
-                listenNotification: "CALENDAR_EVENTS"
+                // [중요] VoiceQR이 보내는 'SHOW_QR' 신호만 듣도록 설정 (그래야 음성 제어 가능)
+                listenNotification: "SHOW_QR"
             }
         },
-
-        // 뉴스용 QR 코드 모듈
+        
+        // [음성 인식 모듈]
         {
-            module: "MMM-QRCode",
-            position: "bottom_right", // (예시: 오른쪽 아래)
+            module: "MMM-VoiceQR",
+            position: "top_right", 
             config: {
-                imageSize: 120,
-                showRaw: false,
-                text: "", // 기본값
-                
-                // [핵심] 뉴스 알림을 듣도록 설정
-                listenNotification: "NEWS_ARTICLE_CHANGED"
+                debug: true
             }
         },
     ]

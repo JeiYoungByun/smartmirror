@@ -1,41 +1,44 @@
+/* global Module, Log, moment, config */
+
 Module.register("newsfeed", {
-	// Default module config.
+	// 기본 모듈 설정
 	defaults: {
 		feeds: [
 			{
 				title: "New York Times",
 				url: "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
-				encoding: "UTF-8" //ISO-8859-1
+				encoding: "UTF-8" // ISO-8859-1 인코딩도 지원
 			}
 		],
-		showAsList: false,
-		showSourceTitle: true,
-		showPublishDate: true,
-		broadcastNewsFeeds: true,
-		broadcastNewsUpdates: true,
-		showDescription: false,
-		showTitleAsUrl: false,
-		wrapTitle: true,
-		wrapDescription: true,
-		truncDescription: true,
-		lengthDescription: 400,
-		hideLoading: false,
-		reloadInterval: 5 * 60 * 1000, // every 5 minutes
-		updateInterval: 10 * 1000,
-		animationSpeed: 2.5 * 1000,
-		maxNewsItems: 0, // 0 for unlimited
-		ignoreOldItems: false,
-		ignoreOlderThan: 24 * 60 * 60 * 1000, // 1 day
-		removeStartTags: "",
-		removeEndTags: "",
+		showAsList: false,             // 목록 형태로 보여줄지 여부
+		showSourceTitle: true,         // 뉴스 출처 제목 표시 여부
+		showPublishDate: true,         // 발행일 표시 여부
+		broadcastNewsFeeds: true,      // 다른 모듈로 뉴스 피드 정보 전송 여부
+		broadcastNewsUpdates: true,    // 뉴스 업데이트 정보 전송 여부
+		showDescription: false,        // 기사 내용(요약) 표시 여부
+		showTitleAsUrl: false,         // 제목을 URL 링크로 표시할지 여부
+		wrapTitle: true,               // 제목 줄바꿈 허용 여부
+		wrapDescription: true,         // 내용 줄바꿈 허용 여부
+		truncDescription: true,        // 내용이 너무 길면 자를지 여부
+		lengthDescription: 400,        // 내용을 자를 길이 (글자 수)
+		hideLoading: false,            // 로딩 중 표시 숨김 여부
+		reloadInterval: 5 * 60 * 1000, // 5분마다 피드 새로고침
+		updateInterval: 10 * 1000,     // 10초마다 다음 기사로 전환
+		animationSpeed: 2.5 * 1000,    // 전환 애니메이션 속도 (2.5초)
+		maxNewsItems: 0,               // 가져올 최대 뉴스 개수 (0은 제한 없음)
+		ignoreOldItems: false,         // 오래된 기사 무시 여부
+		ignoreOlderThan: 24 * 60 * 60 * 1000, // 1일 이상 된 기사는 무시
+		removeStartTags: "",           // 제목/내용 시작 부분에서 제거할 태그
+		removeEndTags: "",             // 제목/내용 끝 부분에서 제거할 태그
 		startTags: [],
 		endTags: [],
-		prohibitedWords: [],
-		scrollLength: 500,
-		logFeedWarnings: false,
-		dangerouslyDisableAutoEscaping: false
+		prohibitedWords: [],           // 금지어 목록 (포함된 기사는 무시)
+		scrollLength: 500,             // 스크롤 길이
+		logFeedWarnings: false,        // 피드 경고 로그 출력 여부
+		dangerouslyDisableAutoEscaping: false // HTML 태그 자동 이스케이프 해제 여부 (주의 필요)
 	},
 
+	// URL 접두사 생성 (CORS 프록시 사용 시)
 	getUrlPrefix (item) {
 		if (item.useCorsProxy) {
 			return `${location.protocol}//${location.host}${config.basePath}cors?url=`;
@@ -44,29 +47,26 @@ Module.register("newsfeed", {
 		}
 	},
 
-	// Define required scripts.
+	// 필요한 스크립트 로드
 	getScripts () {
 		return ["moment.js"];
 	},
 
-	//Define required styles.
+	// 필요한 스타일시트(CSS) 로드
 	getStyles () {
 		return ["newsfeed.css"];
 	},
 
-	// Define required translations.
+	// 번역 파일 로드
 	getTranslations () {
-		// The translations for the default modules are defined in the core translation files.
-		// Therefore we can just return false. Otherwise we should have returned a dictionary.
-		// If you're trying to build your own module including translations, check out the documentation.
 		return false;
 	},
 
-	// Define start sequence.
+	// 모듈 시작 시퀀스
 	start () {
-		Log.info(`Starting module: ${this.name}`);
+		Log.info(`모듈 시작: ${this.name}`);
 
-		// Set locale.
+		// 로케일 설정
 		moment.locale(config.language);
 
 		this.newsItems = [];
@@ -75,12 +75,12 @@ Module.register("newsfeed", {
 		this.activeItem = 0;
 		this.scrollPosition = 0;
 
-		this.registerFeeds();
+		this.registerFeeds(); // 피드 등록 시작
 
 		this.isShowingDescription = this.config.showDescription;
 	},
 
-	// Override socket notification handler.
+	// 소켓 알림 수신 핸들러 (백엔드 -> 프론트엔드)
 	socketNotificationReceived (notification, payload) {
 		if (notification === "NEWS_ITEMS") {
 			this.generateFeed(payload);
@@ -100,7 +100,7 @@ Module.register("newsfeed", {
 		}
 	},
 
-	//Override fetching of template name
+	// 템플릿 이름 가져오기
 	getTemplate () {
 		if (this.config.feedUrl) {
 			return "oldconfig.njk";
@@ -110,13 +110,13 @@ Module.register("newsfeed", {
 		return "newsfeed.njk";
 	},
 
-	//Override template data and return whats used for the current template
+	// 템플릿에 전달할 데이터 생성
 	getTemplateData () {
 		if (this.activeItem >= this.newsItems.length) {
 			this.activeItem = 0;
 		}
 		this.activeItemCount = this.newsItems.length;
-		// this.config.showFullArticle is a run-time configuration, triggered by optional notifications
+		
 		if (this.config.showFullArticle) {
 			this.activeItemHash = this.newsItems[this.activeItem]?.hash;
 			return {
@@ -156,6 +156,7 @@ Module.register("newsfeed", {
 		};
 	},
 
+	// 현재 활성 기사의 URL 가져오기
 	getActiveItemURL () {
 		const item = this.newsItems[this.activeItem];
 		if (item) {
@@ -165,23 +166,15 @@ Module.register("newsfeed", {
 		}
 	},
 
-	/**
-     * Broadcasts the currently active article.
-     */
-    broadcastActiveArticle () {
-        // config에서 방송(broadcast) 옵션이 켜져 있을 때만 실행
-        if (this.config.broadcastNewsFeeds || this.config.broadcastNewsUpdates) {
-            const item = this.newsItems[this.activeItem];
-            if (item) {
-                // 이 알림을 QR 코드 모듈이 기다리고 있습니다.
-                this.sendNotification("NEWS_ARTICLE_CHANGED", item);
-            }
-        }
-    },
+	broadcastActiveArticle () {
+		if (this.config.broadcastNewsFeeds || this.config.broadcastNewsUpdates) {
+			const item = this.newsItems[this.activeItem];
+			if (item) {
+				this.sendNotification("NEWS_ARTICLE_CHANGED", item);
+			}
+		}
+	},
 
-	/**
-	 * Registers the feeds to be used by the backend.
-	 */
 	registerFeeds () {
 		for (let feed of this.config.feeds) {
 			this.sendSocketNotification("ADD_FEED", {
@@ -191,12 +184,6 @@ Module.register("newsfeed", {
 		}
 	},
 
-	/**
-	 * Gets a feed property by name
-	 * @param {object} feed A feed object.
-	 * @param {string} property The name of the property.
-	 * @returns {property} The value of the specified property for the feed.
-	 */
 	getFeedProperty (feed, property) {
 		let res = this.config[property];
 		const f = this.config.feeds.find((feedItem) => feedItem.url === feed);
@@ -204,10 +191,6 @@ Module.register("newsfeed", {
 		return res;
 	},
 
-	/**
-	 * Generate an ordered list of items for this configured module.
-	 * @param {object} feeds An object with feeds returned by the node helper.
-	 */
 	generateFeed (feeds) {
 		let newsItems = [];
 		for (let feed in feeds) {
@@ -241,8 +224,8 @@ Module.register("newsfeed", {
 				return true;
 			}, this);
 		}
+		
 		newsItems.forEach((item) => {
-			//Remove selected tags from the beginning of rss feed items (title or description)
 			if (this.config.removeStartTags === "title" || this.config.removeStartTags === "both") {
 				for (let startTag of this.config.startTags) {
 					if (item.title.slice(0, startTag.length) === startTag) {
@@ -261,7 +244,6 @@ Module.register("newsfeed", {
 				}
 			}
 
-			//Remove selected tags from the end of rss feed items (title or description)
 			if (this.config.removeEndTags) {
 				for (let endTag of this.config.endTags) {
 					if (item.title.slice(-endTag.length) === endTag) {
@@ -279,16 +261,13 @@ Module.register("newsfeed", {
 			}
 		});
 
-		// get updated news items and broadcast them
 		const updatedItems = [];
 		newsItems.forEach((value) => {
 			if (this.newsItems.findIndex((value1) => value1 === value) === -1) {
-				// Add item to updated items list
 				updatedItems.push(value);
 			}
 		});
 
-		// check if updated items exist, if so and if we should broadcast these updates, then lets do so
 		if (this.config.broadcastNewsUpdates && updatedItems.length > 0) {
 			this.sendNotification("NEWS_FEED_UPDATE", { items: updatedItems });
 		}
@@ -296,11 +275,6 @@ Module.register("newsfeed", {
 		this.newsItems = newsItems;
 	},
 
-	/**
-	 * Check if this module is configured to show this feed.
-	 * @param {string} feedUrl Url of the feed to check.
-	 * @returns {boolean} True if it is subscribed, false otherwise
-	 */
 	subscribedToFeed (feedUrl) {
 		for (let feed of this.config.feeds) {
 			if (feed.url === feedUrl) {
@@ -310,11 +284,6 @@ Module.register("newsfeed", {
 		return false;
 	},
 
-	/**
-	 * Returns title for the specific feed url.
-	 * @param {string} feedUrl Url of the feed
-	 * @returns {string} The title of the feed
-	 */
 	titleForFeed (feedUrl) {
 		for (let feed of this.config.feeds) {
 			if (feed.url === feedUrl) {
@@ -324,48 +293,25 @@ Module.register("newsfeed", {
 		return "";
 	},
 
-	/**
-	 * Schedule visual update.
-	 */
 	scheduleUpdateInterval () {
 		this.updateDom(this.config.animationSpeed);
 
-		this.broadcastActiveArticle();
+		this.broadcastActiveArticle(); 
 
-		// Broadcast NewsFeed if needed
 		if (this.config.broadcastNewsFeeds) {
 			this.sendNotification("NEWS_FEED", { items: this.newsItems });
 		}
 
-		// #2638 Clear timer if it already exists
 		if (this.timer) clearInterval(this.timer);
 
 		this.timer = setInterval(() => {
-
-			/*
-			 * When animations are enabled, don't update the DOM unless we are actually changing what we are displaying.
-			 * (Animating from a headline to itself is unsightly.)
-			 * Cases:
-			 *
-			 * Number of items | Number of items | Display
-			 * at last update  |   right now     | Behaviour
-			 * ----------------------------------------------------
-			 *     0           |      0          | do not update
-			 *     0           |     >0          | update
-			 *     1           |   0 or >1       | update
-			 *     1           |      1          | update only if item details (hash value) changed
-			 *    >1           |    any          | update
-			 *
-			 * (N.B. We set activeItemCount and activeItemHash in getTemplateData().)
-			 */
 			if (this.newsItems.length > 1 || this.newsItems.length !== this.activeItemCount || this.activeItemHash !== this.newsItems[0]?.hash) {
-				this.activeItem++; // this is OK if newsItems.Length==1; getTemplateData will wrap it around
+				this.activeItem++; 
 				this.updateDom(this.config.animationSpeed);
 
-				this.broadcastActiveArticle();
+				this.broadcastActiveArticle(); 
 			}
 
-			// Broadcast NewsFeed if needed
 			if (this.config.broadcastNewsFeeds) {
 				this.sendNotification("NEWS_FEED", { items: this.newsItems });
 			}
@@ -376,7 +322,6 @@ Module.register("newsfeed", {
 		this.isShowingDescription = this.config.showDescription;
 		this.config.showFullArticle = false;
 		this.scrollPosition = 0;
-		// reset bottom bar alignment
 		document.getElementsByClassName("region bottom bar")[0].classList.remove("newsfeed-fullarticle");
 		if (!this.timer) {
 			this.scheduleUpdateInterval();
@@ -393,7 +338,7 @@ Module.register("newsfeed", {
 				this.activeItem = 0;
 			}
 			this.resetDescrOrFullArticleAndTimer();
-			Log.debug(`${this.name} - going from article #${before} to #${this.activeItem} (of ${this.newsItems.length})`);
+			Log.debug(`${this.name} - 기사 전환: #${before} -> #${this.activeItem} (총 ${this.newsItems.length}개)`);
 			this.updateDom(100);
 		} else if (notification === "ARTICLE_PREVIOUS") {
 			this.activeItem--;
@@ -401,17 +346,14 @@ Module.register("newsfeed", {
 				this.activeItem = this.newsItems.length - 1;
 			}
 			this.resetDescrOrFullArticleAndTimer();
-			Log.debug(`${this.name} - going from article #${before} to #${this.activeItem} (of ${this.newsItems.length})`);
+			Log.debug(`${this.name} - 기사 전환: #${before} -> #${this.activeItem} (총 ${this.newsItems.length}개)`);
 			this.updateDom(100);
 		}
-		// if "more details" is received the first time: show article summary, on second time show full article
 		else if (notification === "ARTICLE_MORE_DETAILS") {
-			// full article is already showing, so scrolling down
 			if (this.config.showFullArticle === true) {
 				this.scrollPosition += this.config.scrollLength;
 				window.scrollTo(0, this.scrollPosition);
-				Log.debug(`${this.name} - scrolling down`);
-				Log.debug(`${this.name} - ARTICLE_MORE_DETAILS, scroll position: ${this.config.scrollLength}`);
+				Log.debug(`${this.name} - 아래로 스크롤`);
 			} else {
 				this.showFullArticle();
 			}
@@ -419,12 +361,11 @@ Module.register("newsfeed", {
 			if (this.config.showFullArticle === true) {
 				this.scrollPosition -= this.config.scrollLength;
 				window.scrollTo(0, this.scrollPosition);
-				Log.debug(`${this.name} - scrolling up`);
-				Log.debug(`${this.name} - ARTICLE_SCROLL_UP, scroll position: ${this.config.scrollLength}`);
+				Log.debug(`${this.name} - 위로 스크롤`);
 			}
 		} else if (notification === "ARTICLE_LESS_DETAILS") {
 			this.resetDescrOrFullArticleAndTimer();
-			Log.debug(`${this.name} - showing only article titles again`);
+			Log.debug(`${this.name} - 기사 제목만 표시 모드로 복귀`);
 			this.updateDom(100);
 		} else if (notification === "ARTICLE_TOGGLE_FULL") {
 			if (this.config.showFullArticle) {
@@ -442,18 +383,31 @@ Module.register("newsfeed", {
 				url: this.getActiveItemURL()
 			});
 		}
+		
+		// -----------------------------------------------------------
+		// [수정 완료] MMM-VoiceQR을 위한 응답 로직
+		// Localhost 문제 해결: getActiveItemURL() 대신 item.url(원본) 사용
+		// -----------------------------------------------------------
+		else if (notification === "REQUEST_NEWS_DATA") {
+			// 현재 활성 아이템 가져오기
+			const item = this.newsItems[this.activeItem];
+			
+			// [중요] item.url을 직접 사용하여 localhost 프록시 방지
+			if (item && item.url) {
+				this.sendNotification("RESPONSE_NEWS_DATA", { url: item.url });
+			}
+		}
 	},
 
 	showFullArticle () {
 		this.isShowingDescription = !this.isShowingDescription;
 		this.config.showFullArticle = !this.isShowingDescription;
-		// make bottom bar align to top to allow scrolling
 		if (this.config.showFullArticle === true) {
 			document.getElementsByClassName("region bottom bar")[0].classList.add("newsfeed-fullarticle");
 		}
 		clearInterval(this.timer);
 		this.timer = null;
-		Log.debug(`${this.name} - showing ${this.isShowingDescription ? "article description" : "full article"}`);
+		Log.debug(`${this.name} - ${this.isShowingDescription ? "기사 요약" : "전체 기사"} 표시`);
 		this.updateDom(100);
 	}
 });

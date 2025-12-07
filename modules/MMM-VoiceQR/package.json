@@ -7,10 +7,16 @@
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
 	"dependencies": {
+		"@grpc/grpc-js": "^1.14.2",
+		"@grpc/proto-loader": "^0.8.0",
 		"google-assistant": "^0.5.4",
 		"google-auth-library": "^10.5.0",
+		"module-alias": "^2.2.3",
 		"node-record-lpcm16": "^1.0.1"
 	},
 	"author": "ChangGongSeol Team",
-	"license": "MIT"
+	"license": "MIT",
+	"devDependencies": {
+		"@electron/rebuild": "^4.0.1"
+	}
 }

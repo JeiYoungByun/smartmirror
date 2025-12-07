@@ -9,7 +9,7 @@ Module.register("MMM-QRCode", {
         colorLight: "#000",
         imageSize: 150,
         showRaw: false,
-        listenNotification: "" // config.js에서 설정
+        listenNotification: "" // config.js에서 "SHOW_QR"로 설정됨
     },
 
     getStyles: function () {
@@ -34,63 +34,37 @@ Module.register("MMM-QRCode", {
 
     notificationReceived: function (notification, payload, sender) {
         
-        // 우리가 기다리던 알림(listenNotification)이 아니면 무시
+        // 1. 설정된 알림(SHOW_QR)이 아니면 무시
         if (notification !== this.config.listenNotification) {
             return;
         }
 
-        let newQrText = null; // 새 QR 텍스트를 저장할 변수
+        let newQrText = null;
 
-        // 2. 알림 종류에 따라 다르게 처리
-        
-        // [A] 캘린더 모듈이 보낸 알림일 경우 (payload는 배열)
-        if (notification === "CALENDAR_EVENTS") {
-            
-            // 2-1. 캘린더에 일정이 하나 이상 있고,
-            if (payload && Array.isArray(payload) && payload.length > 0) {
-                
-                const firstEvent = payload[0]; // 첫 번째(가장 가까운) 일정을 가져옴
-                
-                // 2-2. 그 일정의 'location' (위치) 필드에 값이 있다면
-                if (firstEvent.location) {
-                    newQrText = firstEvent.location; // QR 텍스트를 그 위치 URL로 설정
-                } else {
-                    // 일정이 있지만 위치 값이 없는 경우
-                    newQrText = ""; // QR 코드를 숨김 (빈 문자열)
-                }
-            } else {
-                // 일정이 아예 없는 경우
-                newQrText = ""; // QR 코드를 숨김 (빈 문자열)
-            }
+        // 2. 통합 로직: Payload 안에 URL이 있는지만 확인
+        // (뉴스든 캘린더든 VoiceQR 모듈이 { url: "..." } 형태로 보내줌)
+        if (payload && payload.url) {
+            newQrText = payload.url;
+        } else {
+            // URL이 없거나 빈 문자열이면 숨김 처리
+            newQrText = ""; 
         }
         
-        // [B] 뉴스 모듈이 보낸 알림일 경우 (payload는 객체)
-        else if (notification === "NEWS_ARTICLE_CHANGED") {
-            
-            // 2-1. 뉴스 페이로드가 유효하고, 그 안에 url 속성이 있다면
-            if (payload && payload.url) {
-                newQrText = payload.url; // QR 텍스트를 뉴스 기사 URL로 설정
-            } else {
-                // 뉴스 페이로드가 비어있는 경우
-                newQrText = ""; // QR 코드를 숨김
-            }
-        }
-        
-        // 3. 최종적으로 QR 코드를 업데이트할지 결정
+        // 3. 변경사항이 있을 때만 화면 업데이트
         if (newQrText !== null && this.qrText !== newQrText) {
             this.qrText = newQrText;
-            Log.info(this.name + " updating QR code to: '" + (this.qrText || "empty") + "'");
-            this.updateDom(3000);
+            Log.info(this.name + " updating QR code: " + (this.qrText ? "Show" : "Hide"));
+            this.updateDom(100); 
         }
     },
 
     getDom: function () {
-        // (getDom 함수는 이전과 동일합니다 - qrText가 비어있으면 QR 안 그림)
         const wrapperEl = document.createElement("div");
         wrapperEl.classList.add("qrcode");
-        const qrcodeEl = document.createElement("div");
-
+        
+        // 텍스트(URL)가 있을 때만 QR 코드 생성
         if (this.qrText) {
+            const qrcodeEl = document.createElement("div");
             new QRCode(qrcodeEl, {
                 text: this.qrText,
                 width: this.config.imageSize,
@@ -99,17 +73,20 @@ Module.register("MMM-QRCode", {
                 colorLight: this.config.colorLight,
                 correctLevel: QRCode.CorrectLevel.H
             });
+            
+            const imageEl = document.createElement("div");
+            imageEl.classList.add("qrcode__image");
+            imageEl.appendChild(qrcodeEl);
+            wrapperEl.appendChild(imageEl);
+
+            if (this.config.showRaw) {
+                const textEl = document.createElement("div");
+                textEl.classList.add("qrcode__text");
+                textEl.innerHTML = this.qrText;
+                wrapperEl.appendChild(textEl);
+            }
         }
-        const imageEl = document.createElement("div");
-        imageEl.classList.add("qrcode__image");
-        imageEl.appendChild(qrcodeEl);
-        wrapperEl.appendChild(imageEl);
-        if (this.config.showRaw && this.qrText) {
-            const textEl = document.createElement("div");
-            textEl.classList.add("qrcode__text");
-            textEl.innerHTML = this.qrText;
-            wrapperEl.appendChild(textEl);
-        }
+        // 텍스트가 없으면 빈 div 리턴 (화면에서 사라짐)
         return wrapperEl;
     }
 });

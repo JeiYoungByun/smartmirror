@@ -1,61 +1,81 @@
-/* Magic Mirror
- * Module: MMM-VoiceQR
- *
- * By ChangGongSeol Team
- * MIT Licensed.
- */
+/* MMM-VoiceQR.js (Safe Version) */
 
 Module.register("MMM-VoiceQR", {
     defaults: {
-        debug: false
+        debug: true
     },
 
-    start: function () {
+    start: function() {
         Log.info("Starting module: " + this.name);
-        this.isListening = false;
         this.sendSocketNotification("INIT", this.config);
+        
+        // [디버깅] 이 로그가 터미널에 떠야 캘린더도 살아납니다.
+        console.log(">> [MMM-VoiceQR] Front-end Loaded!"); 
+        this.sendSocketNotification("DEBUG_LOG", "Front-end Loaded!");
+
+        this.isQRShowing = false;
+        this.storedEvents = [];
     },
 
-    getDom: function () {
-        const wrapper = document.createElement("div");
-        // 상태 표시 아이콘 (마이크)
-        const icon = document.createElement("i");
-        icon.className = "fas fa-microphone " + (this.isListening ? "fa-pulse" : "");
-        icon.style.color = this.isListening ? "#e74c3c" : "#555"; // 듣고 있으면 빨간색
+    getDom: function() {
+        var wrapper = document.createElement("div");
+        var icon = document.createElement("i");
+        icon.className = "fas fa-microphone";
+        icon.style.color = "#e74c3c";
         icon.style.fontSize = "30px";
-        
         wrapper.appendChild(icon);
         return wrapper;
     },
 
-    // [1] 백엔드(node_helper)로부터 메시지 수신
-    socketNotificationReceived: function (notification, payload) {
-        if (notification === "LISTENING_STATUS") {
-            this.isListening = payload;
-            this.updateDom();
+    notificationReceived: function(notification, payload, sender) {
+        // 캘린더 데이터 받으면 저장
+        if (notification === "CALENDAR_EVENTS") {
+            this.storedEvents = payload;
+            this.sendSocketNotification("DEBUG_LOG", "Calendar Events: " + payload.length);
         }
-        else if (notification === "TURN_OVER") {
-            // "뉴스 QR" 키워드가 감지됨
-            if (payload.foundHook === "GET_NEWS_QR") {
-                Log.info("[MMM-VoiceQR] 'News QR' command received. Requesting news data...");
-                
-                // [2] Newsfeed 모듈에게 URL 요청
-                this.sendNotification("REQUEST_NEWS_DATA", {}); 
+        // 뉴스 데이터 처리
+        if (notification === "RESPONSE_NEWS_DATA") {
+            this.sendNotification("SHOW_QR", { url: payload.url });
+        }
+        // 뉴스 자동 변경
+        if (notification === "NEWS_ARTICLE_CHANGED") {
+            if (this.isQRShowing && payload.url) {
+                this.sendNotification("SHOW_QR", { url: payload.url });
             }
         }
     },
 
-    // [3] 다른 모듈(Newsfeed)로부터 알림 수신
-    notificationReceived: function (notification, payload, sender) {
-        
-        // Newsfeed 모듈이 URL을 응답했을 때
-        if (notification === "RESPONSE_NEWS_DATA") {
-            Log.info("[MMM-VoiceQR] Received News Data. URL: " + payload.url);
-            
-            // [4] MMM-QRCode 모듈에게 URL 표시 명령 전달
-            // payload에서 URL을 추출하여 QRCode 모듈이 이해할 수 있는 형태로 전송
-            // (MMM-QRCode 모듈의 config.js 설정과 맞춰야 함)
-            this.sendNotification("SHOW_QR_URL", { url: payload.url });
+    socketNotificationReceived: function(notification, payload) {
+        if (notification === "TURN_OVER") {
+            if (payload.type === "NEWS") {
+                this.isQRShowing = true;
+                this.sendNotification("REQUEST_NEWS_DATA", {});
+            } else if (payload.type === "CALENDAR") {
+                this.isQRShowing = false;
+                var idx = payload.index || 0;
+                
+                if (this.storedEvents && this.storedEvents.length > idx) {
+                    var event = this.storedEvents[idx];
+                    if (event.location) {
+                        // 네이버 지도 URL 정리 로직 (간소화)
+                        var finalUrl = event.location;
+                        if (finalUrl.includes("/place/")) {
+                            try {
+                                var match = finalUrl.match(/\/place\/(\d+)/);
+                                if (match) finalUrl = "https://map.naver.com/p/place/" + match[1];
+                            } catch(e) {}
+                        }
+                        this.sendNotification("SHOW_QR", { url: finalUrl });
+                    } else {
+                        this.sendNotification("SHOW_QR", { url: "" });
+                    }
+                } else {
+                    this.sendNotification("SHOW_QR", { url: "" });
+                }
+            } else if (payload.type === "OFF") {
+                this.isQRShowing = false;
+                this.sendNotification("SHOW_QR", { url: "" });
+            }
         }
     }
 });
